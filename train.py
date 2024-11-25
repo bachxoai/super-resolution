@@ -198,6 +198,17 @@ def evaluate():
     out_bicu = cv2.resize(valid_lr_img, dsize = [size[1] * 4, size[0] * 4], interpolation = cv2.INTER_CUBIC)
     tlx.vision.save_image(out_bicu, file_name='valid_hr_cubic.png', path=save_dir)
 
+def debug_image_data(img, name="Image"):
+    """Debug helper function"""
+    print(f"\n{name} debug info:")
+    print(f"Type: {type(img)}")
+    if isinstance(img, np.ndarray):
+        print(f"Shape: {img.shape}")
+        print(f"Dtype: {img.dtype}")
+        print(f"Min value: {img.min()}")
+        print(f"Max value: {img.max()}")
+    else:
+        print("Not a numpy array")
 
 def process_image_patches(G, lr_img, patch_size=384, overlap=32):
     """
@@ -275,6 +286,8 @@ def process_image_patches(G, lr_img, patch_size=384, overlap=32):
     # Chuyển về range [0, 255] và uint8
     output = np.clip(output * 255, 0, 255).astype(np.uint8)
     
+    debug_image_data(output, "Output image")
+    
     return output
 
 def create_blending_mask(shape):
@@ -303,6 +316,10 @@ def test(test_img_path):
     imid = 0
     valid_lr_img = test_lr_imgs[imid]
     
+    # Đảm bảo valid_lr_img là numpy array
+    if not isinstance(valid_lr_img, np.ndarray):
+        valid_lr_img = np.array(valid_lr_img)
+    
     print("Starting image processing with patches...")
     print(f"Input image shape: {valid_lr_img.shape}")
     
@@ -315,17 +332,31 @@ def test(test_img_path):
         # Save results
         os.makedirs(test_dir, exist_ok=True)
         
+        # Đảm bảo sr_img là numpy array
+        if not isinstance(sr_img, np.ndarray):
+            sr_img = np.array(sr_img)
+            
+        # Đảm bảo valid_lr_img là numpy array với dtype đúng
+        if not isinstance(valid_lr_img, np.ndarray):
+            valid_lr_img = np.array(valid_lr_img)
+        if valid_lr_img.dtype != np.uint8:
+            valid_lr_img = valid_lr_img.astype(np.uint8)
+        
         # Save SR image
-        cv2.imwrite(
-            os.path.join(test_dir, 'valid_gen.png'),
-            cv2.cvtColor(sr_img, cv2.COLOR_RGB2BGR)
-        )
+        try:
+            sr_img_bgr = cv2.cvtColor(sr_img, cv2.COLOR_RGB2BGR)
+            cv2.imwrite(os.path.join(test_dir, 'valid_gen.png'), sr_img_bgr)
+            print("Saved SR image")
+        except Exception as e:
+            print(f"Error saving SR image: {str(e)}")
         
         # Save LR image
-        cv2.imwrite(
-            os.path.join(test_dir, 'valid_lr.png'),
-            cv2.cvtColor(valid_lr_img, cv2.COLOR_RGB2BGR)
-        )
+        try:
+            lr_img_bgr = cv2.cvtColor(valid_lr_img, cv2.COLOR_RGB2BGR)
+            cv2.imwrite(os.path.join(test_dir, 'valid_lr.png'), lr_img_bgr)
+            print("Saved LR image")
+        except Exception as e:
+            print(f"Error saving LR image: {str(e)}")
         
         print(f"[*] Images saved to {test_dir}")
         
@@ -336,6 +367,8 @@ def test(test_img_path):
         # Cleanup
         import gc
         gc.collect()
+        
+
 
 if __name__ == '__main__':
     import argparse
